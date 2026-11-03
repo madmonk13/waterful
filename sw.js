@@ -1,4 +1,4 @@
-const CACHE = 'aquacade-v8';
+const CACHE = 'aquacade-v9';
 const SHELL = [
   './',
   'index.html',

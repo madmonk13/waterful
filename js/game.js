@@ -62,6 +62,18 @@ export const LAYOUTS = {
   },
 };
 
+function stretchLayout(L, k) {
+  const pts = (a) => a?.map(([x, y]) => [x, y * k]);
+  return {
+    ...L,
+    floor: pts(L.floor),
+    peak: pts(L.peak),
+    pumps: L.pumps.map((p) => ({ ...p, y: p.y * k })),
+    pegs: L.pegs.map((p) => ({ ...p, tip: p.tip * k, base: p.base * k })),
+    hoops: L.hoops.map((h) => ({ ...h, y: h.y * k, board: { top: h.board.top * k, bot: h.board.bot * k } })),
+  };
+}
+
 // ---------- small geometry helpers ----------
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -201,12 +213,15 @@ class Pump {
 // ---------- the game ----------
 
 export class Game {
-  constructor(mode, onEvent = () => {}) {
+  // height: world height in px (a multiple of the fluid cell). Layouts are drawn for H and
+  // stretched vertically so the water can fill screens of different shapes.
+  constructor(mode, onEvent = () => {}, height = H) {
     this.mode = mode;
     this.onEvent = onEvent;
-    const L = LAYOUTS[mode];
+    this.H = height;
+    const L = stretchLayout(LAYOUTS[mode], height / H);
     this.layout = L;
-    this.fluid = new Fluid(W / CELL, H / CELL, CELL);
+    this.fluid = new Fluid(W / CELL, this.H / CELL, CELL);
     this.pumps = L.pumps.map((d) => new Pump(d));
     this.g = { x: 0, y: GRAVITY };
     this.gn = { x: 0, y: 1 };
@@ -221,9 +236,9 @@ export class Game {
       this.segs.push({ ax, ay, bx, by, r: 0 });
     }
     this.segs.push({ ax: 0, ay: 0, bx: W, by: 0, r: 0 });
-    this.segs.push({ ax: 0, ay: 0, bx: 0, by: H, r: 0 });
-    this.segs.push({ ax: W, ay: 0, bx: W, by: H, r: 0 });
-    this.segs.push({ ax: 0, ay: H, bx: W, by: H, r: 0 });
+    this.segs.push({ ax: 0, ay: 0, bx: 0, by: this.H, r: 0 });
+    this.segs.push({ ax: W, ay: 0, bx: W, by: this.H, r: 0 });
+    this.segs.push({ ax: 0, ay: this.H, bx: W, by: this.H, r: 0 });
 
     this.pegs = L.pegs.map((p) => ({ ...p, r: 2.6 }));
 
@@ -249,7 +264,7 @@ export class Game {
       const [ax, ay] = f[i], [bx, by] = f[i + 1];
       if (x >= ax && x <= bx) return ay + (by - ay) * ((x - ax) / (bx - ax));
     }
-    return H;
+    return this.H;
   }
 
   reset() {
@@ -262,7 +277,7 @@ export class Game {
     if (this.mode === 'rings') {
       for (let i = 0; i < RINGS; i++) {
         const color = RING_COLORS[i % RING_COLORS.length];
-        const R = 15, x = 30 + ((i * 97) % 300), y = 380 + (i % 4) * 28;
+        const R = 15, x = 30 + ((i * 97) % 300), y = (380 + (i % 4) * 28) * this.H / H;
         const ang = (Math.random() - 0.5) * 1.2;
         const c = Math.cos(ang) * R, s = Math.sin(ang) * R;
         this.rings.push({
@@ -274,7 +289,7 @@ export class Game {
       }
     } else {
       for (let i = 0; i < BALLS; i++) {
-        const x = Math.random() < 0.5 ? 60 : 300, y = 300 + i * 30;
+        const x = Math.random() < 0.5 ? 60 : 300, y = (300 + i * 30) * this.H / H;
         this.balls.push({ ...pt(x, y), oy: y, r: BALL_R, spin: Math.random() * 6.28, blocked: -1 });
       }
     }
@@ -336,9 +351,9 @@ export class Game {
   // Water line is perpendicular to gravity, placed so the air pocket keeps a fixed area.
   updateSurface(dt) {
     const { gn } = this;
-    const dots = [0, gn.x * W, gn.x * W + gn.y * H, gn.y * H];
+    const dots = [0, gn.x * W, gn.x * W + gn.y * this.H, gn.y * this.H];
     let lo = Math.min(...dots), hi = Math.max(...dots);
-    const want = AIR_FRACTION * W * H;
+    const want = AIR_FRACTION * W * this.H;
     for (let i = 0; i < 24; i++) {
       const mid = (lo + hi) / 2;
       if (this.clipArea(mid, false) < want) lo = mid; else hi = mid;
@@ -352,7 +367,7 @@ export class Game {
   // Clip the case rectangle by the water line. water=true keeps the water side.
   clipPoly(c, water) {
     const { gn } = this;
-    const pts = [[0, 0], [W, 0], [W, H], [0, H]];
+    const pts = [[0, 0], [W, 0], [W, this.H], [0, this.H]];
     const out = [];
     const side = (p) => (water ? 1 : -1) * (p[0] * gn.x + p[1] * gn.y - c);
     for (let i = 0; i < 4; i++) {
@@ -394,7 +409,7 @@ export class Game {
       // Rising bubbles drag the water along with them, which keeps the plume going.
       const push = b.r * BUBBLE_PUSH * dt;
       fluid.splat(b.x, b.y, -gn.x * push, -gn.y * push, 8);
-      if (this.inAir(b.x, b.y) || b.x < 0 || b.x > W || b.y < 0 || b.y > H) {
+      if (this.inAir(b.x, b.y) || b.x < 0 || b.x > W || b.y < 0 || b.y > this.H) {
         bubbles[i] = bubbles[bubbles.length - 1];
         bubbles.pop();
         this.waveAmp = Math.min(3, this.waveAmp + 0.02);
@@ -405,7 +420,7 @@ export class Game {
   newSpeck(s) {
     for (let k = 0; k < 20; k++) {
       s.x = Math.random() * W;
-      s.y = Math.random() * H;
+      s.y = Math.random() * this.H;
       if (!this.inAir(s.x, s.y) && s.y < this.floorY(s.x) - 4) break;
     }
     s.vx = 0; s.vy = 0;
@@ -440,7 +455,8 @@ export class Game {
         const rx = b.x - p.x, ry = b.y - p.y;
         const along = rx * p.dx + ry * p.dy, across = Math.abs(rx * p.dy - ry * p.dx);
         if (along > -b.r && along < TUNE.kickReach && across < b.r + 8) {
-          const a = TUNE.kick * p.power * Math.sin(Math.PI * p.t / PULSE) * dt * dt;
+          // Taller screens stretch the court, so shots need more push to reach the hoops.
+          const a = TUNE.kick * (this.H / H) ** 1.5 * p.power * Math.sin(Math.PI * p.t / PULSE) * dt * dt;
           b.px -= p.dx * a;
           b.py -= p.dy * a;
         }
@@ -598,7 +614,7 @@ export class Game {
 
     // water body and air pocket
     const water = this.clipPoly(this.surfC, true);
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    const grad = ctx.createLinearGradient(0, 0, 0, this.H);
     grad.addColorStop(0, 'rgba(140,205,255,0.10)');
     grad.addColorStop(1, 'rgba(40,120,230,0.30)');
     ctx.fillStyle = grad;
@@ -707,11 +723,11 @@ export class Game {
   drawFloor(ctx) {
     const f = this.layout.floor;
     ctx.beginPath();
-    ctx.moveTo(0, H);
+    ctx.moveTo(0, this.H);
     for (const [x, y] of f) ctx.lineTo(x, y);
-    ctx.lineTo(W, H);
+    ctx.lineTo(W, this.H);
     ctx.closePath();
-    const fg = ctx.createLinearGradient(0, 480, 0, H);
+    const fg = ctx.createLinearGradient(0, this.H * 0.8, 0, this.H);
     fg.addColorStop(0, 'rgba(235,245,255,0.75)');
     fg.addColorStop(1, 'rgba(160,190,230,0.85)');
     // Rails are thin clear bars with water visible behind them; only the peak is solid.
@@ -724,7 +740,7 @@ export class Game {
       ctx.fillStyle = fg;
       ctx.fill();
       const baseY = this.layout.peak[0][1];
-      ctx.fillRect(0, baseY, W, H - baseY);
+      ctx.fillRect(0, baseY, W, this.H - baseY);
     }
     ctx.beginPath();
     for (let i = 0; i < f.length; i++) i ? ctx.lineTo(f[i][0], f[i][1]) : ctx.moveTo(f[i][0], f[i][1]);
@@ -877,7 +893,7 @@ function ballSkin() {
 }
 
 // The clear plastic case around the water, drawn on top of the game.
-export function drawCase(ctx) {
+export function drawCase(ctx, h = H) {
   const F = FRAME, r = 26;
   const rr = (x, y, w, h, rad) => {
     ctx.moveTo(x + rad, y);
@@ -889,8 +905,8 @@ export function drawCase(ctx) {
   };
   ctx.save();
   ctx.beginPath();
-  rr(-F, -F, W + F * 2, H + F, r + F * 0.6);
-  rr(0, 0, W, H, r * 0.6);
+  rr(-F, -F, W + F * 2, h + F, r + F * 0.6);
+  rr(0, 0, W, h, r * 0.6);
   const g = ctx.createLinearGradient(-F, 0, W + F, 0);
   g.addColorStop(0, 'rgba(210,235,255,0.55)');
   g.addColorStop(0.08, 'rgba(160,205,255,0.28)');
@@ -900,12 +916,12 @@ export function drawCase(ctx) {
   ctx.fill('evenodd');
 
   ctx.beginPath();
-  rr(-F + 1, -F + 1, W + F * 2 - 2, H + F - 2, r + F * 0.6);
+  rr(-F + 1, -F + 1, W + F * 2 - 2, h + F - 2, r + F * 0.6);
   ctx.strokeStyle = 'rgba(255,255,255,0.6)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.beginPath();
-  rr(0, 0, W, H, r * 0.6);
+  rr(0, 0, W, h, r * 0.6);
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 1;
   ctx.stroke();
@@ -918,16 +934,16 @@ export function drawCase(ctx) {
 
   // glare streaks across the front face
   ctx.beginPath();
-  rr(0, 0, W, H, r * 0.6);
+  rr(0, 0, W, h, r * 0.6);
   ctx.clip();
   ctx.globalCompositeOperation = 'lighter';
-  const gl = ctx.createLinearGradient(0, 0, W, H * 0.6);
+  const gl = ctx.createLinearGradient(0, 0, W, h * 0.6);
   gl.addColorStop(0.0, 'rgba(255,255,255,0)');
   gl.addColorStop(0.18, 'rgba(255,255,255,0.10)');
   gl.addColorStop(0.24, 'rgba(255,255,255,0)');
   gl.addColorStop(0.30, 'rgba(255,255,255,0.05)');
   gl.addColorStop(0.34, 'rgba(255,255,255,0)');
   ctx.fillStyle = gl;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, W, h);
   ctx.restore();
 }

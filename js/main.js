@@ -31,7 +31,7 @@ function start(mode) {
   sfx.muted = !settings.sound;
   if (settings.tilt) enableTilt();
   if (settings.camera && !stream) setCamera(true);
-  game = new Game(mode, onEvent);
+  game = new Game(mode, onEvent, worldHeight());
   window.__game = game; // handy for poking at the sim from devtools
   window.__tune = TUNE;
   body.classList.remove('mode-rings', 'mode-hoops');
@@ -44,6 +44,8 @@ function start(mode) {
   syncPills();
   resize();
   wakeLock();
+  // Works for installed apps on Android; iOS ignores it, so the "turn upright" screen covers that.
+  screen.orientation?.lock?.('portrait').catch(() => {});
 }
 
 $('#btn-home').addEventListener('click', () => {
@@ -301,16 +303,30 @@ document.addEventListener('visibilitychange', () => {
 
 const MIN_BASE = 130; // px kept for the button panel on phones
 
+// On phones, pick the world height that makes the water fill the full screen width with
+// the button panel below it (snapped to the fluid grid, within what the layouts tolerate).
+function worldHeight() {
+  const play = $('#play');
+  const wasHidden = play.hidden;
+  play.hidden = false;
+  const w = play.clientWidth, h = play.clientHeight;
+  play.hidden = wasHidden;
+  if (w >= 600) return H;
+  const fit = (h - MIN_BASE) / (w / W);
+  return Math.max(504, Math.min(720, Math.floor(fit / 12) * 12));
+}
+
 // Phones: no case border, the water runs edge to edge from the top of the screen and the
 // button panel takes whatever height is left. Wider screens: framed case on the base.
 function resize() {
   const play = $('#play'), stage = $('#stage');
   const bleed = play.clientWidth < 600;
   body.classList.toggle('bleed', bleed);
+  const h = game ? game.H : H;
   let s;
   if (bleed) {
-    s = Math.min(play.clientWidth / W, (play.clientHeight - MIN_BASE) / H);
-    stage.style.height = `${Math.floor(H * s)}px`;
+    s = Math.min(play.clientWidth / W, (play.clientHeight - MIN_BASE) / h);
+    stage.style.height = `${Math.floor(h * s)}px`;
   } else {
     stage.style.height = '';
   }
@@ -318,12 +334,12 @@ function resize() {
   const dpr = Math.min(2, devicePixelRatio || 1);
   cv.width = Math.round(r.width * dpr);
   cv.height = Math.round(r.height * dpr);
-  if (!bleed) s = Math.min((r.width - 16) / (W + FRAME * 2), (r.height - 8) / (H + FRAME));
+  if (!bleed) s = Math.min((r.width - 16) / (W + FRAME * 2), (r.height - 8) / (h + FRAME));
   view = {
     bleed,
     k: s * dpr,
     ox: (r.width - W * s) / 2 * dpr,
-    oy: bleed ? 0 : (r.height - H * s) * dpr,
+    oy: bleed ? 0 : (r.height - h * s) * dpr,
   };
 }
 new ResizeObserver(resize).observe($('#play'));
@@ -351,11 +367,11 @@ function frame(now) {
   ctx.setTransform(view.k, 0, 0, view.k, view.ox, view.oy);
   ctx.save();
   ctx.beginPath();
-  if (ctx.roundRect && !view.bleed) ctx.roundRect(0, 0, W, H, 16); else ctx.rect(0, 0, W, H);
+  if (ctx.roundRect && !view.bleed) ctx.roundRect(0, 0, W, game.H, 16); else ctx.rect(0, 0, W, game.H);
   ctx.clip();
   game.draw(ctx);
   ctx.restore();
-  if (!view.bleed) drawCase(ctx);
+  if (!view.bleed) drawCase(ctx, game.H);
   if (game.mode === 'rings') updateHud();
 }
 requestAnimationFrame(frame);
