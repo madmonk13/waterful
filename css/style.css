@@ -37,7 +37,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 #cam {
   object-fit: cover;
-  transform: scale(var(--cam-zoom, 1.6));
+  transform: scale(var(--cam-zoom, 1));
   filter: saturate(0.92) brightness(0.92);
   opacity: 0;
   transition: opacity .4s;
@@ -254,7 +254,32 @@ body.mode-hoops #score-r { color: #8cc4ff; }
   background: rgba(5, 15, 30, .55);
   z-index: 5;
 }
-#win[hidden], #toast[hidden] { display: none; }
+#win[hidden], #toast[hidden], #campanel[hidden] { display: none; }
+#campanel {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: calc(var(--safe-t) + 56px);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(10, 25, 45, .8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 14px;
+  touch-action: none;
+}
+#campanel input { flex: 1; min-width: 0; accent-color: #2b7cff; }
+#campanel output { width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+#campanel button {
+  border: 0;
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,.15);
+}
 #win .card {
   background: #fff;
   color: #10223a;

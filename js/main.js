@@ -8,7 +8,7 @@ const ctx = cv.getContext('2d');
 const cam = $('#cam');
 const sfx = new Sfx();
 
-const DEFAULTS = { camera: false, tilt: true, sound: true };
+const DEFAULTS = { camera: false, tilt: true, sound: true, camZoom: 1 };
 const settings = { ...DEFAULTS };
 try { Object.assign(settings, JSON.parse(localStorage.getItem('bubble-pump') || '{}')); } catch {}
 const save = () => { try { localStorage.setItem('bubble-pump', JSON.stringify(settings)); } catch {} };
@@ -49,18 +49,40 @@ $('#btn-home').addEventListener('click', () => {
   game = null;
   $('#play').hidden = true;
   $('#win').hidden = true;
+  camPanel.hidden = true;
   $('#menu').hidden = false;
   $('#opt-camera').checked = settings.camera;
   $('#opt-sound').checked = settings.sound;
 });
 $('#btn-reset').addEventListener('click', () => { game?.reset(); $('#win').hidden = true; updateHud(); });
 $('#btn-again').addEventListener('click', () => { game?.reset(); $('#win').hidden = true; updateHud(); });
+// Camera pill: turns the see-through case on, then opens/closes its zoom panel.
+const camPanel = $('#campanel');
 $('#btn-camera').addEventListener('click', () => {
-  settings.camera = !settings.camera;
-  save();
-  setCamera(settings.camera);
+  if (!settings.camera) {
+    settings.camera = true;
+    save();
+    setCamera(true);
+    camPanel.hidden = false;
+  } else {
+    camPanel.hidden = !camPanel.hidden;
+  }
   syncPills();
 });
+$('#cam-off').addEventListener('click', () => {
+  settings.camera = false;
+  save();
+  setCamera(false);
+  camPanel.hidden = true;
+  syncPills();
+});
+const zoomInput = $('#cam-zoom');
+zoomInput.value = settings.camZoom;
+zoomInput.addEventListener('input', () => {
+  settings.camZoom = Number(zoomInput.value);
+  applyZoom();
+});
+zoomInput.addEventListener('change', save);
 $('#btn-sound').addEventListener('click', () => {
   settings.sound = !settings.sound;
   sfx.unlock();
@@ -215,6 +237,24 @@ function onMotion(e) {
 
 let stream = null;
 
+// Use the camera's own zoom where the browser exposes it (sharper, and some phones can go
+// below 1x); make up any remainder by scaling the video element.
+let zoomTimer = 0;
+function applyZoom() {
+  const z = settings.camZoom;
+  $('#cam-zoom-val').textContent = `${z.toFixed(1)}×`;
+  const track = stream?.getVideoTracks()[0];
+  const caps = track?.getCapabilities?.().zoom;
+  if (!caps) {
+    body.style.setProperty('--cam-zoom', Math.max(1, z));
+    return;
+  }
+  const native = Math.min(caps.max, Math.max(caps.min, z));
+  body.style.setProperty('--cam-zoom', Math.max(1, z / native));
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => track.applyConstraints({ advanced: [{ zoom: native }] }).catch(() => {}), 60);
+}
+
 async function setCamera(on) {
   if (!on) {
     stream?.getTracks().forEach((t) => t.stop());
@@ -236,13 +276,7 @@ async function setCamera(on) {
     });
     cam.srcObject = stream;
     await cam.play().catch(() => {});
-    // Prefer optical/native zoom so the background looks closer to "through" the phone.
-    const track = stream.getVideoTracks()[0];
-    const zoom = track.getCapabilities?.().zoom;
-    if (zoom) {
-      await track.applyConstraints({ advanced: [{ zoom: Math.min(zoom.max, Math.max(zoom.min, 2)) }] }).catch(() => {});
-      body.style.setProperty('--cam-zoom', '1.05');
-    }
+    applyZoom();
     body.classList.add('cam-on');
   } catch (err) {
     toast('Camera unavailable — showing the plain case.');

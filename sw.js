@@ -1,4 +1,4 @@
-const CACHE = 'bubble-pump-v3';
+const CACHE = 'bubble-pump-v5';
 const SHELL = [
   './',
   'index.html',
@@ -31,7 +31,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' }) // revalidate, so a stale HTTP cache never hides an update
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));

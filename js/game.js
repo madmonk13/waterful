@@ -17,8 +17,11 @@ export const TUNE = {
   source: 3000,    // volume pushed out of the nozzle at the peak
   suck: 0.05,      // back-flow strength after the button is let go, relative to jet
   ringWeight: 0.55, // share of GRAVITY each piece feels underwater
-  ballWeight: 0.45,
-  ballDrag: 0.08,
+  ballWeight: 0.9,
+  ballDrag: 0.02,  // low, so a launched ball carries its momentum in an arc
+  kick: 24000,     // px/s^2 the jet applies straight to a ball in its nozzle
+  kickReach: 60,
+  aimJitter: 0.12, // random spread in jet direction from press to press
   flatten: 3,      // how strongly sinking rings level out (1/s)
   pegShield: 0.6,  // share of upward current a ring already on a peg still feels
 };
@@ -47,11 +50,11 @@ export const LAYOUTS = {
     floor: [[0, 370], [118, 525], [138, 566], [180, 410], [222, 566], [242, 525], [360, 370]],
     rails: true,
     peak: [[138, 566], [180, 410], [222, 566]],
-    pumps: [{ x: 138, y: 560, dx: -0.2, dy: -1 }, { x: 222, y: 560, dx: 0.2, dy: -1 }],
+    pumps: [{ x: 138, y: 560, dx: -0.3, dy: -1 }, { x: 222, y: 560, dx: 0.3, dy: -1 }],
     pegs: [],
     hoops: [
-      { l: 49, r: 115, y: 160, board: { top: 88, bot: 170 }, player: 0 },
-      { l: 245, r: 311, y: 160, board: { top: 88, bot: 170 }, player: 1 },
+      { l: 56, r: 108, y: 160, board: { top: 92, bot: 170 }, player: 0 },
+      { l: 252, r: 304, y: 160, board: { top: 92, bot: 170 }, player: 1 },
     ],
   },
 };
@@ -174,11 +177,21 @@ class Pump {
   constructor(d) {
     const l = Math.hypot(d.dx, d.dy);
     this.x = d.x; this.y = d.y; this.dx = d.dx / l; this.dy = d.dy / l;
+    this.baseDx = d.dx; this.baseDy = d.dy;
     this.t = 99;
     this.rt = 99;
     this.down = false;
+    this.power = 1;
   }
-  press() { this.t = 0; this.down = true; }
+  // No two thumb presses are quite alike.
+  press() {
+    this.t = 0;
+    this.down = true;
+    this.power = 0.8 + Math.random() * 0.4;
+    const dx = this.baseDx + (Math.random() - 0.5) * TUNE.aimJitter, l = Math.hypot(dx, this.baseDy);
+    this.dx = dx / l;
+    this.dy = this.baseDy / l;
+  }
   release() { if (this.down) { this.down = false; this.rt = 0; } }
 }
 
@@ -285,7 +298,7 @@ export class Game {
     for (const p of this.pumps) {
       if (p.t < PULSE) {
         const s = Math.sin(Math.PI * p.t / PULSE);
-        const a = TUNE.jet * s * dt;
+        const a = TUNE.jet * p.power * s * dt;
         for (let k = 0; k < 4; k++) {
           const d = 4 + k * 14;
           fluid.splat(p.x + p.dx * d, p.y + p.dy * d, p.dx * a, p.dy * a, TUNE.jetRadius);
@@ -418,6 +431,17 @@ export class Game {
       const ox = b.x;
       integrate(b, tmp, this.inAir(b.x, b.y) ? { x: this.g.x * 2.2, y: this.g.y * 2.2 } : g, TUNE.ballDrag, dt);
       b.x += (Math.random() - 0.5) * 0.01; // so nothing balances forever on the centre ridge
+      // A ball sitting in a nozzle takes the jet full on and gets flung, not just carried.
+      for (const p of this.pumps) {
+        if (p.t >= PULSE) continue;
+        const rx = b.x - p.x, ry = b.y - p.y;
+        const along = rx * p.dx + ry * p.dy, across = Math.abs(rx * p.dy - ry * p.dx);
+        if (along > -b.r && along < TUNE.kickReach && across < b.r + 8) {
+          const a = TUNE.kick * p.power * Math.sin(Math.PI * p.t / PULSE) * dt * dt;
+          b.px -= p.dx * a;
+          b.py -= p.dy * a;
+        }
+      }
       b.spin += (b.x - ox) / b.r;
     }
     for (let it = 0; it < 3; it++) {
@@ -591,7 +615,7 @@ export class Game {
       ctx.lineWidth = 2;
       ctx.fillRect(cx - bw / 2, h.board.top, bw, h.board.bot - h.board.top);
       ctx.strokeRect(cx - bw / 2, h.board.top, bw, h.board.bot - h.board.top);
-      ctx.strokeRect(cx - 18, h.y - 34, 36, 28);
+      ctx.strokeRect(cx - 15, h.y - 28, 30, 22);
       ctx.beginPath();
       ctx.ellipse((h.l + h.r) / 2, h.y, (h.r - h.l) / 2, 5, 0, Math.PI, Math.PI * 2);
       ctx.strokeStyle = '#c4481b';
@@ -779,7 +803,7 @@ export class Game {
     h.swish = (h.swish || 0) * 0.94;
     this.fluid.sample(cx, h.y + 14, tmp);
     const sway = Math.max(-6, Math.min(6, tmp.x * 0.03)) + Math.sin(this.time * 30) * h.swish * 3;
-    const depth = 34, bw = hw * 0.72;
+    const depth = 26, bw = hw * 0.72;
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.lineWidth = 1;
     ctx.beginPath();
