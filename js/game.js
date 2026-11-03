@@ -19,7 +19,7 @@ export const TUNE = {
   ringWeight: 0.55, // share of GRAVITY each piece feels underwater
   ballWeight: 0.9,
   ballDrag: 0.02,  // low, so a launched ball carries its momentum in an arc
-  kick: 24000,     // px/s^2 the jet applies straight to a ball in its nozzle
+  kick: 8000,      // px/s^2 the jet applies straight to a ball in its nozzle
   kickReach: 60,
   aimJitter: 0.12, // random spread in jet direction from press to press
   flatten: 3,      // how strongly sinking rings level out (1/s)
@@ -33,7 +33,7 @@ const BUBBLE_PUSH = 18;      // px/s^2 per px of bubble radius that rising bubbl
 const RING_COLORS = ['#3fcf4f', '#2fa8ff', '#ffd23d', '#ff4b4b'];
 const RINGS = 12;
 const BALLS = 1;
-const BALL_R = 9;
+const BALL_R = 13;
 
 export const LAYOUTS = {
   rings: {
@@ -45,16 +45,19 @@ export const LAYOUTS = {
     hoops: [],
   },
   hoops: {
-    // Classic arrangement: rails slope in from the walls, a tall peak splits the middle,
-    // a nozzle sits in each gap, and two hoops hang up top with backboards on the rear wall.
-    floor: [[0, 370], [118, 525], [138, 566], [180, 410], [222, 566], [242, 525], [360, 370]],
+    // Classic arrangement: rails slope in from the walls and feed a slanted channel on each
+    // side of a centre peak. Each channel's nozzle fires up and across, so you shoot at the
+    // hoop on the far side; a made basket drops onto that side's rail for the other player.
+    // Everything below sits in the bottom 30% of the water (y >= 420).
+    floor: [[0, 420], [125, 470], [110, 592], [146, 592], [180, 440], [214, 592], [250, 592], [235, 470], [360, 420]],
     rails: true,
-    peak: [[138, 566], [180, 410], [222, 566]],
-    pumps: [{ x: 138, y: 560, dx: -0.3, dy: -1 }, { x: 222, y: 560, dx: 0.3, dy: -1 }],
+    jetScale: 0.3,   // gentler water jets than Ring Toss; the ball kick does the shooting
+    peak: [[146, 592], [180, 440], [214, 592]],
+    pumps: [{ x: 128, y: 586, dx: 0.2, dy: -1 }, { x: 232, y: 586, dx: -0.2, dy: -1 }],
     pegs: [],
     hoops: [
-      { l: 56, r: 108, y: 160, board: { top: 92, bot: 170 }, player: 0 },
-      { l: 252, r: 304, y: 160, board: { top: 92, bot: 170 }, player: 1 },
+      { l: 56, r: 116, y: 226, board: { top: 150, bot: 236 }, player: 1 },
+      { l: 244, r: 304, y: 226, board: { top: 150, bot: 236 }, player: 0 },
     ],
   },
 };
@@ -271,7 +274,7 @@ export class Game {
       }
     } else {
       for (let i = 0; i < BALLS; i++) {
-        const x = 180 + (Math.random() < 0.5 ? -30 : 30) + i * 20, y = 330;
+        const x = Math.random() < 0.5 ? 60 : 300, y = 300 + i * 30;
         this.balls.push({ ...pt(x, y), oy: y, r: BALL_R, spin: Math.random() * 6.28, blocked: -1 });
       }
     }
@@ -298,7 +301,7 @@ export class Game {
     for (const p of this.pumps) {
       if (p.t < PULSE) {
         const s = Math.sin(Math.PI * p.t / PULSE);
-        const a = TUNE.jet * p.power * s * dt;
+        const a = TUNE.jet * (this.layout.jetScale ?? 1) * p.power * s * dt;
         for (let k = 0; k < 4; k++) {
           const d = 4 + k * 14;
           fluid.splat(p.x + p.dx * d, p.y + p.dy * d, p.dx * a, p.dy * a, TUNE.jetRadius);
@@ -717,12 +720,11 @@ export class Game {
     if (this.layout.peak) {
       ctx.beginPath();
       this.layout.peak.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.lineTo(W / 2 + 60, H);
-      ctx.lineTo(W / 2 - 60, H);
       ctx.closePath();
       ctx.fillStyle = fg;
       ctx.fill();
-      ctx.fillRect(0, 566, W, H - 566);
+      const baseY = this.layout.peak[0][1];
+      ctx.fillRect(0, baseY, W, H - baseY);
     }
     ctx.beginPath();
     for (let i = 0; i < f.length; i++) i ? ctx.lineTo(f[i][0], f[i][1]) : ctx.moveTo(f[i][0], f[i][1]);

@@ -1,4 +1,4 @@
-const CACHE = 'bubble-pump-v5';
+const CACHE = 'aquacade-v8';
 const SHELL = [
   './',
   'index.html',

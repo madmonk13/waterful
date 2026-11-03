@@ -1,7 +1,7 @@
 {
-  "name": "Bubble Pump",
-  "short_name": "Bubble Pump",
-  "description": "Water-pump ring toss and two-player hoops.",
+  "name": "Aquacade",
+  "short_name": "Aquacade",
+  "description": "Water-pump ring toss and two-player basketball.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

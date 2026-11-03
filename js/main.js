@@ -10,8 +10,9 @@ const sfx = new Sfx();
 
 const DEFAULTS = { camera: false, tilt: true, sound: true, camZoom: 1 };
 const settings = { ...DEFAULTS };
-try { Object.assign(settings, JSON.parse(localStorage.getItem('bubble-pump') || '{}')); } catch {}
-const save = () => { try { localStorage.setItem('bubble-pump', JSON.stringify(settings)); } catch {} };
+// Settings saved under the app's old name still load.
+try { Object.assign(settings, JSON.parse(localStorage.getItem('aquacade') || localStorage.getItem('bubble-pump') || '{}')); } catch {}
+const save = () => { try { localStorage.setItem('aquacade', JSON.stringify(settings)); } catch {} };
 
 let game = null;
 let view = { k: 1, ox: 0, oy: 0 };
@@ -35,7 +36,7 @@ function start(mode) {
   window.__tune = TUNE;
   body.classList.remove('mode-rings', 'mode-hoops');
   body.classList.add(`mode-${mode}`);
-  $('#title').textContent = mode === 'rings' ? 'Ring Toss' : 'Hoops';
+  $('#title').textContent = mode === 'rings' ? 'Ring Toss' : 'Basketball';
   $('#win').hidden = true;
   $('#menu').hidden = true;
   $('#play').hidden = false;

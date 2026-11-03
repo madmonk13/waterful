@@ -225,6 +225,12 @@ body.mode-hoops #score-r { color: #8cc4ff; }
 .game[data-mode="hoops"] svg .r1 { stroke: #ff4d4d; }
 .game[data-mode="hoops"] svg .r2 { stroke: #3d9bff; }
 .game svg .ball { fill: #ff8a1a; stroke: none; }
+.game svg .board { stroke-width: 1.5; fill: rgba(255,255,255,.15); }
+.game svg .thin { stroke-width: 1.2; }
+.game svg .net { stroke-width: 1; opacity: .9; }
+.game svg .rim { stroke: #ff6a2a; stroke-width: 2.4; }
+.game svg .rail { stroke-width: 2; }
+.game svg .seam { stroke: #3a1a08; stroke-width: .8; }
 .game b { font-size: 18px; }
 .game small { color: #cfe0ff; font-size: 12px; }
 
