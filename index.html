@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0d2a4a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bubble Pump">
+  <title>Bubble Pump</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <video id="cam" playsinline muted autoplay></video>
+  <div id="backdrop"></div>
+
+  <main id="play" hidden>
+    <header id="topbar">
+      <button class="pill" id="btn-home" aria-label="Menu">&#x2630;</button>
+      <div id="title"></div>
+      <button class="pill" id="btn-reset" aria-label="Reset">&#x21bb;</button>
+      <button class="pill" id="btn-camera" aria-label="Toggle see-through camera">&#x25ce;</button>
+      <button class="pill" id="btn-sound" aria-label="Toggle sound">&#x266a;</button>
+    </header>
+    <div id="stage"><canvas id="cv"></canvas></div>
+    <footer id="base">
+      <div class="side">
+        <div class="score" id="score-l"></div>
+        <button class="pump" id="pump-l" aria-label="Left pump"><span></span></button>
+      </div>
+      <div id="base-label"></div>
+      <div class="side">
+        <div class="score" id="score-r"></div>
+        <button class="pump" id="pump-r" aria-label="Right pump"><span></span></button>
+      </div>
+    </footer>
+  </main>
+
+  <section id="menu">
+    <h1>Bubble<br>Pump</h1>
+    <p class="tag">Pump the water. Mind the bubbles.</p>
+    <div class="games">
+      <button class="game" data-mode="rings">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><line x1="22" y1="18" x2="22" y2="52" /><line x1="42" y1="18" x2="42" y2="52" /><ellipse cx="22" cy="44" rx="10" ry="3.5" class="r1"/><ellipse cx="42" cy="48" rx="10" ry="3.5" class="r2"/><ellipse cx="32" cy="20" rx="10" ry="6" transform="rotate(-25 32 20)" class="r3"/></svg>
+        <b>Ring Toss</b><small>Free play &middot; 1 pump</small>
+      </button>
+      <button class="game" data-mode="hoops">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><line x1="8" y1="12" x2="8" y2="34" /><ellipse cx="18" cy="26" rx="10" ry="3" class="r1"/><line x1="56" y1="12" x2="56" y2="34" /><ellipse cx="46" cy="26" rx="10" ry="3" class="r2"/><circle cx="32" cy="46" r="7" class="ball"/></svg>
+        <b>Hoops</b><small>2-player &middot; first to 10</small>
+      </button>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="opt-camera"> See-through case <small>(uses rear camera)</small></label>
+      <label><input type="checkbox" id="opt-tilt"> Tilt to steer</label>
+      <label><input type="checkbox" id="opt-sound"> Sound</label>
+    </div>
+    <p class="fine">Camera video stays on your device and is never recorded.</p>
+  </section>
+
+  <div id="win" hidden>
+    <div class="card">
+      <h2 id="win-msg"></h2>
+      <button id="btn-again">Play again</button>
+    </div>
+  </div>
+
+  <div id="toast" hidden></div>
+  <div id="rotate">Turn your phone upright</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
